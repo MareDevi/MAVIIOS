@@ -1,10 +1,9 @@
-// Copyright © SixtyFPS GmbH <info@slint.dev>
-// SPDX-License-Identifier: MIT
 import { DemoPalette, Page, Label } from "common.slint";
 
 export struct Level  {
     color: color,
     level: float,
+    slected: bool,
 }
 
 export component SettingPage inherits Page {
@@ -69,7 +68,7 @@ export component SettingPage inherits Page {
                     Rectangle {
                         border-radius: self.width / 2;
                         border-color: DemoPalette.neutral-box;
-                        border-width: 2px;
+                        border-width: color-info.slected ? 6px : 2px;
                     }
                 }
             }

@@ -8,7 +8,7 @@ slint::include_modules!(); // 包含 Slint 模块
 fn create_slint_app() -> MainWindow {
     let ui = MainWindow::new().expect("Failed to load UI"); // 创建新的 UI 窗口
 
-    let ui_handle = ui.as_weak(); // 获取 UI 的弱引用
+    let _ui_handle = ui.as_weak(); // 获取 UI 的弱引用
     ui // 返回 UI 窗口
 }
 
@@ -27,7 +27,7 @@ fn main() -> ! {
     use rp_pico::hal::pac;
     use rp_pico::hal::prelude::*;
     use embedded_hal::PwmPin;
-    use embedded_hal::digital::v2::{OutputPin, InputPin};
+    use embedded_hal::digital::v2::InputPin;
 
     // -------- 设置分配器 --------
     const HEAP_SIZE: usize = 200 * 1024; // 定义堆大小
@@ -60,7 +60,7 @@ fn main() -> ! {
 
     let timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS); // 初始化定时器
 
-    let mut pwm_slices = hal::pwm::Slices::new(pac.PWM, &mut pac.RESETS);
+    let pwm_slices = hal::pwm::Slices::new(pac.PWM, &mut pac.RESETS);
     
     let led_pin = pins.led.into_mode::<hal::gpio::FunctionPwm>();
     let mut pwm_led = pwm_slices.pwm4;
@@ -194,38 +194,78 @@ fn main() -> ! {
             }
         }
 
-        let led_brightness = ui.get_led_brightness();
-        //when button_a is pressed, the led brightness will increase from 0 to 100%
-        if button_a.is_low().unwrap() {
-            delay.delay_ms(50);
-            if button_a.is_low().unwrap() {
-                // 增加亮度
-                let current_duty = pwm_led.channel_b.get_duty();
-                let max_duty = pwm_led.channel_b.get_max_duty();
-                if current_duty + (max_duty / 10) <= max_duty {
-                    pwm_led.channel_b.set_duty(current_duty + (max_duty / 10));
-                    ui.set_led_brightness((current_duty + (max_duty / 10)) as f32 / max_duty as f32);
-                } else {
-                    pwm_led.channel_b.set_duty(max_duty);
-                    ui.set_led_brightness(1.0);
+        let selected: [bool; 2] = [ui.get_beep_slected(), ui.get_led_slected()];
+        //when slected[0] is true,press button_rt or button_lt to make selected[0] false and selected[1] true
+        //when slected[1] is true,press button_lt or button_lf to make selected[1] false and selected[0] true
+        
+        if selected[0] {
+            if button_rt.is_low().unwrap() {
+                delay.delay_ms(50);
+                if button_rt.is_low().unwrap() {
+                    ui.set_beep_slected(false);
+                    ui.set_led_slected(true);
+                }
+            }
+            if button_lt.is_low().unwrap() {
+                delay.delay_ms(50);
+                if button_lt.is_low().unwrap() {
+                    ui.set_beep_slected(false);
+                    ui.set_led_slected(true);
                 }
             }
         }
 
-        // 降低亮度（按下按钮 B）
-        if button_b.is_low().unwrap() {
-            delay.delay_ms(50);
-            if button_b.is_low().unwrap() {
-                // 降低亮度
-                let current_duty = pwm_led.channel_b.get_duty();
-                let max_duty = pwm_led.channel_b.get_max_duty();
-                if current_duty >= (max_duty / 10) {
-                    pwm_led.channel_b.set_duty(current_duty - (max_duty / 10));
-                    ui.set_led_brightness((current_duty - (max_duty / 10)) as f32 / max_duty as f32);
-                } else {
-                    pwm_led.channel_b.set_duty(0);
-                    ui.set_led_brightness(0.0);
+        if selected[1] {
+            if button_rt.is_low().unwrap() {
+                delay.delay_ms(50);
+                if button_rt.is_low().unwrap() {
+                    ui.set_led_slected(false);
+                    ui.set_beep_slected(true);
                 }
+            }
+            if button_lt.is_low().unwrap() {
+                delay.delay_ms(50);
+                if button_lt.is_low().unwrap() {
+                    ui.set_led_slected(false);
+                    ui.set_beep_slected(true);
+                }
+            }
+            if button_a.is_low().unwrap() {
+                delay.delay_ms(50);
+                if button_a.is_low().unwrap() {
+                    // 增加亮度
+                    let current_duty = pwm_led.channel_b.get_duty();
+                    let max_duty = pwm_led.channel_b.get_max_duty();
+                    if current_duty + (max_duty / 10) <= max_duty {
+                        pwm_led.channel_b.set_duty(current_duty + (max_duty / 10));
+                        ui.set_led_brightness((current_duty + (max_duty / 10)) as f32 / max_duty as f32);
+                    } else {
+                        pwm_led.channel_b.set_duty(max_duty);
+                        ui.set_led_brightness(1.0);
+                    }
+                }
+            }
+            if button_b.is_low().unwrap() {
+                delay.delay_ms(50);
+                if button_b.is_low().unwrap() {
+                    // 降低亮度
+                    let current_duty = pwm_led.channel_b.get_duty();
+                    let max_duty = pwm_led.channel_b.get_max_duty();
+                    if current_duty >= (max_duty / 10) {
+                        pwm_led.channel_b.set_duty(current_duty - (max_duty / 10));
+                        ui.set_led_brightness((current_duty - (max_duty / 10)) as f32 / max_duty as f32);
+                    } else {
+                        pwm_led.channel_b.set_duty(0);
+                        ui.set_led_brightness(0.0);
+                    }
+                }
+            }
+        }
+
+        if button_x.is_low().unwrap() {
+            delay.delay_ms(50);
+            if button_x.is_low().unwrap() {
+                ui.set_orbiter_value((ui.get_orbiter_value() + 1) % 3);
             }
         }
 

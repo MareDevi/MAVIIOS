@@ -1,8 +1,7 @@
 import { DemoPalette, Page } from "common.slint";
 import { SettingPage, Level } from "./setting_page.slint";
 import { AboutPage } from "./about_page.slint";
-import { OrbiterPage } from "./orbiter_page.slint";
-import { Orbiter } from "demo.slint";
+import { OrbiterPage, Orbiter } from "./orbiter_page.slint";
 
 component SideBarIcon inherits Rectangle {
     in-out property <bool> active;
@@ -24,9 +23,11 @@ export component MainWindow inherits Window {
     in-out property <int> orbiter_value: 0;
     in-out property <float> led_brightness: 0;
     in-out property <float> beep_volume: 0;
+    in-out property <bool> led_slected: true;
+    in-out property <bool> beep_slected: false;
     in-out property <[Level]> levels: [
-        {color: #0ff, level: beep_volume},
-        {color: #f0f, level: led_brightness},
+        {color: #0ff, level: beep_volume, slected: beep_slected},
+        {color: #f0f, level: led_brightness, slected: led_slected},
     ];
 
     callback quit();
@@ -65,6 +66,7 @@ export component MainWindow inherits Window {
 
             OrbiterPage {
                 current-value <=> root.orbiter_value;
+                page-visible: root.active-page == 1;
                 y: root.active-page == 1 ? 0 : root.active-page > 1 ? - self.height - 1px : parent.height + 1px;
                 //animate y { duration: 125ms; easing: ease; }
             }
