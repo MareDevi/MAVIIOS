@@ -1,0 +1,68 @@
+// Copyright © SixtyFPS GmbH <info@slint.dev>
+// SPDX-License-Identifier: MIT
+import { ListView } from "std-widgets.slint";
+import { DemoPalette, Page, Label } from "common.slint";
+
+export component AboutPage inherits Page {
+    in property <bool> page-visible;
+    in property <int> uptime;
+    in property <bool> night-mode;
+
+    header: "About";
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height);
+        height: 85%;
+        width: 100%;
+        VerticalLayout {
+            spacing: 10px;
+            GridLayout {
+                height: 100px;
+                width: 175px;
+
+                spacing: 5px;
+                Row {
+                    Label {
+                        text: "MCU:";
+                    }
+                    Label {
+                        text: "RP2040";
+                    }
+                }
+                Row {
+                    Label {
+                        text: "UI:";
+                    }
+                    Label {
+                        text: "SlintUI";
+                    }
+                }
+                Row {
+                    Label {
+                        text: "Up-Time:";
+                    }
+                    Label {
+                        text: root.uptime + "s";
+                    }
+                }
+            }
+            Text {
+                height: 15px;
+                text: "Build with Rust and SlintUI";
+                color: DemoPalette.text-foreground-color;
+            }
+            HorizontalLayout {
+                Image {
+                    source: @image-url("./images/rust.svg");
+                }
+                if root.night-mode: Image {
+                    source: @image-url("./images/slint-logo-square-dark-80x80.png");
+                }
+                if !root.night-mode: Image {
+                    source: @image-url("./images/slint-logo-square-light-80x80.png");
+                }
+            }
+        }
+    }
+}

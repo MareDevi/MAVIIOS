@@ -1,0 +1,154 @@
+import { DemoPalette, Page } from "common.slint";
+import { SettingPage, Level } from "./setting_page.slint";
+import { AboutPage } from "./about_page.slint";
+import { OrbiterPage } from "./orbiter_page.slint";
+import { Orbiter } from "demo.slint";
+
+component SideBarIcon inherits Rectangle {
+    in-out property <bool> active;
+
+    callback activate;
+
+}
+
+export component MainWindow inherits Window {
+    width: 240px;
+    height: 240px;
+    title: "Slint printer demo";
+    background: DemoPalette.main-background;
+    default-font-size: DemoPalette.base-font-size;
+
+    in-out property <int> active-page: 0;
+    in-out property <bool> night-mode <=> DemoPalette.night-mode;
+    in-out property <int> uptime: 0;
+    in-out property <int> orbiter_value: 0;
+    in-out property <[Level]> levels: [
+        {color: #0ff, level: 60%},
+        {color: #f0f, level: 70%},
+    ];
+
+    callback quit();
+
+    timer := Timer {
+        interval: 1s;
+        running: true;
+        triggered() => {
+            uptime += 1;
+        }
+    }
+
+
+    main-view := Rectangle {
+        property <length> margin: 5px;
+
+        x: sidebar.x + sidebar.width;
+        y: self.margin;
+        height: parent.height - self.margin * 2;
+        width: parent.width - self.x - self.margin;
+        border-radius: 15px;
+        background: DemoPalette.page-background-color;
+
+        Rectangle {
+            clip: true;
+            x: main-view.border-radius / 2;
+            y: main-view.border-radius / 2;
+            width: main-view.width - main-view.border-radius;
+            height: main-view.height - main-view.border-radius;
+
+            home-page := SettingPage {
+                y: root.active-page == 0 ? 0 : root.active-page > 0 ? - self.height - 1px : parent.height + 1px;
+                levels <=> root.levels;
+                page-visible: root.active-page == 0;
+            }
+
+            OrbiterPage {
+                current-value <=> root.orbiter_value;
+                y: root.active-page == 1 ? 0 : root.active-page > 1 ? - self.height - 1px : parent.height + 1px;
+                //animate y { duration: 125ms; easing: ease; }
+            }
+
+            AboutPage {
+                uptime <=> root.uptime;
+                night-mode <=> root.night-mode;
+                y: root.active-page == 2 ? 0 : root.active-page > 2 ? - self.height - 1px : parent.height + 1px;
+                //animate y { duration: 125ms; easing: ease; }
+            }
+        }
+    }
+
+
+    sidebar := Rectangle {
+        function icon-y(index: int) -> length {
+            return 34px // top padding
+                + index * 50px;
+        }
+
+
+        width: 40px;
+        x: 5px;
+
+        Image {
+            x:0;
+            source: @image-url("images/page_selection.svg");
+            y: sidebar.icon-y(root.active-page) - 23px;
+            width: 49px;
+            height: 86px;
+            colorize: DemoPalette.page-background-color;
+
+            animate y {
+                duration: 125ms;
+            }
+        }
+
+        for page-icon[idx] in [
+            @image-url("images/home.svg"),
+            @image-url("images/planet.svg"),
+            @image-url("images/laptop.svg"),
+        ] : SideBarIcon {
+            activate => {
+                root.active-page = idx;
+            }
+
+            y: sidebar.icon-y(idx)+3px;
+            x: (parent.width - self.width) / 2;
+            height: 30px;
+            width: 30px;
+
+            icon := Image {
+                colorize: (root.active-page == idx) ? DemoPalette.active-page-icon-color : DemoPalette.inactive-page-icon-color;
+                source: page-icon;
+                image-fit: contain;
+                width: 100%;
+                height: 100%;
+
+                animate colorize {
+                    duration: 125ms;
+                }
+            }
+        }
+
+        Rectangle {
+            y: sidebar.icon-y(3) ;
+            x: (parent.width - self.width) / 2;
+            background: #6284FF;
+            height: 2px;
+            width: 37px;
+        }
+
+        SideBarIcon {
+            //y: sidebar.icon-y(3) + 10px;
+            y: parent.height - self.height - main-view.margin * 2;
+            x: (parent.width - self.width) / 2;
+            height: 27px;
+            width: 27px;
+
+            Image {
+                colorize: DemoPalette.night-mode ? #F1FF98 : DemoPalette.inactive-page-icon-color;
+                source: DemoPalette.night-mode ? @image-url("images/moon_full.svg") : @image-url("images/moon.svg");
+                image-fit: contain;
+                width: 100%;
+                height: 100%;
+            }
+        }
+    }
+}
