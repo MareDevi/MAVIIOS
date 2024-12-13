@@ -22,9 +22,11 @@ export component MainWindow inherits Window {
     in-out property <bool> night-mode <=> DemoPalette.night-mode;
     in-out property <int> uptime: 0;
     in-out property <int> orbiter_value: 0;
+    in-out property <float> led_brightness: 0;
+    in-out property <float> beep_volume: 0;
     in-out property <[Level]> levels: [
-        {color: #0ff, level: 60%},
-        {color: #f0f, level: 70%},
+        {color: #0ff, level: beep_volume},
+        {color: #f0f, level: led_brightness},
     ];
 
     callback quit();

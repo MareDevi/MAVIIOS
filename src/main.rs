@@ -26,6 +26,7 @@ fn main() -> ! {
     use rp_pico::hal;
     use rp_pico::hal::pac;
     use rp_pico::hal::prelude::*;
+    use embedded_hal::PwmPin;
     use embedded_hal::digital::v2::{OutputPin, InputPin};
 
     // -------- 设置分配器 --------
@@ -59,6 +60,16 @@ fn main() -> ! {
 
     let timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS); // 初始化定时器
 
+    let mut pwm_slices = hal::pwm::Slices::new(pac.PWM, &mut pac.RESETS);
+    
+    let led_pin = pins.led.into_mode::<hal::gpio::FunctionPwm>();
+    let mut pwm_led = pwm_slices.pwm4;
+    pwm_led.set_ph_correct();
+    pwm_led.enable();
+
+    pwm_led.channel_b.output_to(led_pin);
+    pwm_led.channel_b.set_duty(0); // 初始设置为 0% 亮度
+
     let _spi_sclk = pins.gpio18.into_mode::<hal::gpio::FunctionSpi>(); // 设置 SPI 时钟引脚
     let _spi_mosi = pins.gpio19.into_mode::<hal::gpio::FunctionSpi>(); // 设置 SPI MOSI 引脚
     let _spi_miso = pins.gpio16.into_mode::<hal::gpio::FunctionSpi>(); // 设置 SPI MISO 引脚
@@ -88,8 +99,6 @@ fn main() -> ! {
     let button_b = pins.gpio10.into_pull_up_input();
     let button_x = pins.gpio3.into_pull_up_input();
     let button_y = pins.gpio28.into_pull_up_input();
-
-    let mut led = pins.led.into_push_pull_output();
 
     display.init(&mut delay).unwrap(); // 初始化显示屏
     display.set_orientation(st7789::Orientation::Portrait).unwrap(); // 设置显示屏方向
@@ -185,6 +194,40 @@ fn main() -> ! {
             }
         }
 
+        let led_brightness = ui.get_led_brightness();
+        //when button_a is pressed, the led brightness will increase from 0 to 100%
+        if button_a.is_low().unwrap() {
+            delay.delay_ms(50);
+            if button_a.is_low().unwrap() {
+                // 增加亮度
+                let current_duty = pwm_led.channel_b.get_duty();
+                let max_duty = pwm_led.channel_b.get_max_duty();
+                if current_duty + (max_duty / 10) <= max_duty {
+                    pwm_led.channel_b.set_duty(current_duty + (max_duty / 10));
+                    ui.set_led_brightness((current_duty + (max_duty / 10)) as f32 / max_duty as f32);
+                } else {
+                    pwm_led.channel_b.set_duty(max_duty);
+                    ui.set_led_brightness(1.0);
+                }
+            }
+        }
+
+        // 降低亮度（按下按钮 B）
+        if button_b.is_low().unwrap() {
+            delay.delay_ms(50);
+            if button_b.is_low().unwrap() {
+                // 降低亮度
+                let current_duty = pwm_led.channel_b.get_duty();
+                let max_duty = pwm_led.channel_b.get_max_duty();
+                if current_duty >= (max_duty / 10) {
+                    pwm_led.channel_b.set_duty(current_duty - (max_duty / 10));
+                    ui.set_led_brightness((current_duty - (max_duty / 10)) as f32 / max_duty as f32);
+                } else {
+                    pwm_led.channel_b.set_duty(0);
+                    ui.set_led_brightness(0.0);
+                }
+            }
+        }
 
         if window.has_active_animations() {
             continue; // 如果有活动动画，则继续循环
