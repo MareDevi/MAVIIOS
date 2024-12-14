@@ -45,6 +45,6 @@ pico = [
     "display-interface-spi",
     "embedded-graphics-core",
     "shared-bus",
-    "panic-halt"
+    "panic-halt",
 ]
 
