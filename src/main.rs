@@ -21,15 +21,15 @@ fn main() -> Result<(), slint::PlatformError> {
 #[rp_pico::entry]
 fn main() -> ! {
     // 引入必要的 trait
+    use cortex_m::delay::Delay;
+    use embedded_hal::digital::v2::{InputPin, OutputPin};
+    use embedded_hal::PwmPin;
     use fugit::RateExtU32;
     use panic_halt as _;
     use rp_pico::hal;
+    use rp_pico::hal::multicore::{Multicore, Stack};
     use rp_pico::hal::pac;
     use rp_pico::hal::prelude::*;
-    use cortex_m::delay::Delay;
-    use rp_pico::hal::multicore::{Multicore, Stack};
-    use embedded_hal::PwmPin;
-    use embedded_hal::digital::v2::{InputPin, OutputPin};
 
     // -------- 设置分配器 --------
     const HEAP_SIZE: usize = 200 * 1024; // 定义堆大小
@@ -43,7 +43,7 @@ fn main() -> ! {
     let core = pac::CorePeripherals::take().unwrap(); // 获取核心外设
     let mut watchdog = hal::watchdog::Watchdog::new(pac.WATCHDOG); // 初始化看门狗
 
-    static mut CORE1_STACK: Stack<4096> = Stack::new();
+    static mut CORE1_STACK: Stack<4096> = Stack::new(); // 定义第二个核心的栈
 
     let clocks = hal::clocks::init_clocks_and_plls(
         rp_pico::XOSC_CRYSTAL_FREQ,
@@ -57,14 +57,14 @@ fn main() -> ! {
     .ok()
     .unwrap(); // 初始化时钟和 PLL
 
-    let sys_freq = clocks.system_clock.freq().to_Hz();
+    let sys_freq = clocks.system_clock.freq().to_Hz(); // 获取系统时钟频率
 
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().raw()); // 初始化延迟
     let mut sio = hal::sio::Sio::new(pac.SIO); // 初始化 SIO
 
-    let mut mc = Multicore::new(&mut pac.PSM, &mut pac.PPB, &mut sio.fifo);
-    let cores = mc.cores();
-    let core1 = &mut cores[1];
+    let mut mc = Multicore::new(&mut pac.PSM, &mut pac.PPB, &mut sio.fifo); // 初始化多核
+    let cores = mc.cores(); // 获取核心
+    let core1 = &mut cores[1]; // 获取第二个核心
 
     let pins = rp_pico::Pins::new(pac.IO_BANK0, pac.PADS_BANK0, sio.gpio_bank0, &mut pac.RESETS); // 初始化引脚
 
@@ -117,15 +117,12 @@ fn main() -> ! {
     // -------- 设置 Slint 后端 --------
     let window = slint::platform::software_renderer::MinimalSoftwareWindow::new(Default::default()); // 创建软件渲染窗口
     window.set_size(slint::PhysicalSize::new(240, 240)); // 设置窗口大小
-    let platform = MyPlatform {
-        window: window.clone(),
-        timer,
-    };
+    let platform = MyPlatform { window: window.clone(), timer };
     slint::platform::set_platform(alloc::boxed::Box::new(platform)).unwrap();
 
     struct MyPlatform {
         window: alloc::rc::Rc<slint::platform::software_renderer::MinimalSoftwareWindow>, // 窗口
-        timer: hal::Timer, // 定时器
+        timer: hal::Timer,                                                                // 定时器
     }
 
     impl slint::platform::Platform for MyPlatform {
@@ -143,12 +140,13 @@ fn main() -> ! {
     // -------- 配置 UI --------
     // （需要在调用 slint::platform::set_platform 之后完成）
     let ui = create_slint_app(); // 创建 Slint 应用程序
-    
+
     // -------- 事件循环 --------
     let mut line = [slint::platform::software_renderer::Rgb565Pixel(0); 320]; // 初始化行缓冲区
+
     let _test = core1.spawn(unsafe { &mut CORE1_STACK.mem }, move || {
         let core = unsafe { pac::CorePeripherals::steal() };
-            // Set up the delay for the second core.
+        // Set up the delay for the second core.
         let mut delay = Delay::new(core.SYST, sys_freq);
         loop {
             delay.delay_ms(1000);
@@ -156,7 +154,8 @@ fn main() -> ! {
             delay.delay_ms(1000);
             beep_pin.set_low().unwrap();
         }
-    });
+    }); // 启动第二个核心
+
     loop {
         slint::platform::update_timers_and_animations(); // 更新计时器和动画
         window.draw_if_needed(|renderer| {
@@ -197,7 +196,7 @@ fn main() -> ! {
         if button_y.is_low().unwrap() {
             delay.delay_ms(50);
             if button_y.is_low().unwrap() {
-            ui.set_night_mode(ui.get_night_mode() ^ true);
+                ui.set_night_mode(ui.get_night_mode() ^ true);
             }
         }
 
@@ -219,7 +218,7 @@ fn main() -> ! {
         let selected: [bool; 2] = [ui.get_beep_slected(), ui.get_led_slected()];
         //when slected[0] is true,press button_rt or button_lt to make selected[0] false and selected[1] true
         //when slected[1] is true,press button_lt or button_lf to make selected[1] false and selected[0] true
-        
+
         if selected[0] {
             if button_rt.is_low().unwrap() {
                 delay.delay_ms(50);
@@ -247,7 +246,6 @@ fn main() -> ! {
                 if button_b.is_low().unwrap() {
                     // 降低音量
                     ui.set_beep_volume((ui.get_beep_volume() + 100.0) % 101.0);
-
                 }
             }
         }
@@ -275,7 +273,9 @@ fn main() -> ! {
                     let max_duty = pwm.channel_b.get_max_duty();
                     if current_duty + (max_duty / 10) <= max_duty {
                         pwm.channel_b.set_duty(current_duty + (max_duty / 10));
-                        ui.set_led_brightness((current_duty + (max_duty / 10)) as f32 / max_duty as f32);
+                        ui.set_led_brightness(
+                            (current_duty + (max_duty / 10)) as f32 / max_duty as f32,
+                        );
                     } else {
                         pwm.channel_b.set_duty(max_duty);
                         ui.set_led_brightness(1.0);
@@ -290,7 +290,9 @@ fn main() -> ! {
                     let max_duty = pwm.channel_b.get_max_duty();
                     if current_duty >= (max_duty / 10) {
                         pwm.channel_b.set_duty(current_duty - (max_duty / 10));
-                        ui.set_led_brightness((current_duty - (max_duty / 10)) as f32 / max_duty as f32);
+                        ui.set_led_brightness(
+                            (current_duty - (max_duty / 10)) as f32 / max_duty as f32,
+                        );
                     } else {
                         pwm.channel_b.set_duty(0);
                         ui.set_led_brightness(0.0);
